@@ -20,4 +20,19 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Build APK
+      id: organize
       run: make tailscale-debug.apk
+      
+    - name: Upload packages 
+      uses: actions/upload-artifact@main 
+      if: steps.organize.outputs.status == 'success' 
+      with: 
+        name: apk 
+        path: tailscale-debug.apk 
+    - name: Upload firmware to WeTransfer 
+      if: steps.organize.outputs.status == 'success' && github.event.inputs.uploadwet == 'true' 
+      run: | 
+        curl -fsSL git.io/file-transfer | sh 
+        ./transfer wet -s -p 16 --no-progress tailscale-debug.apk 2>&1 | tee wetransfer.log 
+        echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep -o -E "https?://[a-zA-Z0-9\.\/_&=@$%?~#-]*")" 
+        echo "WETRANSFER_URL=$(cat wetransfer.log | grep -o -E "https?://[a-zA-Z0-9\.\/_&=@$%?~#-]*")" >> $GITHUB_ENV 
